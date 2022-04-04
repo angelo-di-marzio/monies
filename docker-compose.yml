@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+    command: uvicorn main:app --host 0.0.0.0 --port 80 --reload
+    volumes:
+      - ./app:/app
+    working_dir: /app
+    ports:
+      - 80:80
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres
+    restart: always
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: cluepoints
+      POSTGRES_PASSWORD: cluepointsPWD
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U cluepoints" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  test-db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: cluepoints
+      POSTGRES_PASSWORD: cluepointsPWD
+      POSTGRES_DB: test
+    ports:
+      - 5433:5432
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+
+  worker:
+    image: python:3.9
+    working_dir: /app
+    command:
+      - /bin/sh
+      - -c
+      - |
+        pip install --no-cache-dir --upgrade -r requirements.txt
+        python geocoder.py
+    volumes:
+      - ./worker:/app
+    deploy:
+      mode: replicated
+      replicas: 2
+      # set number of replicas according to load
+    environment:
+      # Without this setting, Python never prints anything out.
+      PYTHONUNBUFFERED: 1
+
+  rabbitmq:
+    hostname: my-rabbit
+    image: "rabbitmq:3-management"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - 'rabbitmq_data:/data'
+    environment:
+      RABBITMQ_DEFAULT_USER: "rabbitmq"
+      RABBITMQ_DEFAULT_PASS: "rabbitmqPWD"
+
+volumes:
+  db-data:
+  rabbitmq_data:
