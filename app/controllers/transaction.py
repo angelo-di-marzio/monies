@@ -60,7 +60,8 @@ def create_atm_transaction(db: Session, amount: int, account_id: int):
     previous_balance = get_balance(db, account_id)
     if previous_balance:
         balance = previous_balance + amount
-    balance = amount
+    else:
+        balance = amount
     logging.info("creating deposit transaction")
     transaction = TransactionCreate(
         amount=amount,
